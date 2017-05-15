@@ -28,6 +28,8 @@ public final class OnboardingView: UIView, CAAnimationDelegate {
   public var topContainerOffset: CGFloat = 8 { didSet { pageViews.forEach { $0.topContainerOffset = topContainerOffset } } }
   public var bottomPageControlViewOffset: CGFloat = 32 { didSet { bottomPageControlViewAnchor.constant = -bottomPageControlViewOffset } }
   
+  public var lastSlideFake: Bool = false
+  
   fileprivate var bottomPageControlViewAnchor: NSLayoutConstraint!
   
   fileprivate var pageViews: [PageView] = []
@@ -169,28 +171,8 @@ public final class OnboardingView: UIView, CAAnimationDelegate {
   internal func didRecognizeSwipe(_ recognizer: UISwipeGestureRecognizer) {
     switch recognizer.direction {
     case UISwipeGestureRecognizerDirection.left:
-      guard pageControlView.currentPage + 1 < pageControlView.pages else {
-        return
-      }
       
-      pageControlView.currentPage += 1
-      delegate?.onboardingView?(self, willSelectPage: pageControlView.currentPage)
-      
-      let previous = previousPageView()
-      let current = currentPageView()
-      
-      insertSubview(current, aboveSubview: previous)
-      
-      maskPageView(current, state: .folded)
-      
-      current.alpha = 1
-      
-      animatePageView(current, forState: .expanded) {
-        self.delegate?.onboardingView?(self, didSelectPage: self.pageControlView.currentPage)
-      }
-      
-      animateSubviews(current)
-      animatePageView(previous, forState: .fadeIn)
+      self.nextSlide()
       
     case UISwipeGestureRecognizerDirection.right:
       guard pageControlView.currentPage - 1 >= 0 else {
@@ -220,6 +202,43 @@ public final class OnboardingView: UIView, CAAnimationDelegate {
     default:
       break
     }
+  }
+  
+  public func nextSlide() {
+    
+    guard pageControlView.currentPage + 1 < pageControlView.pages else {
+      return
+    }
+    
+    let onLastSlide = ( pageControlView.currentPage + 2 == pageControlView.pages )
+    
+    if onLastSlide == false || (onLastSlide && lastSlideFake == false) {
+      pageControlView.currentPage += 1
+    }
+    
+    
+    if (onLastSlide && lastSlideFake == true) {
+      delegate?.onboardingView?(self, willSelectPage: pageControlView.currentPage+1)
+      return
+    }
+    
+    delegate?.onboardingView?(self, willSelectPage: pageControlView.currentPage)
+
+    let previous = previousPageView()
+    let current = currentPageView()
+    
+    insertSubview(current, aboveSubview: previous)
+    
+    maskPageView(current, state: .folded)
+    
+    current.alpha = 1
+    
+    animatePageView(current, forState: .expanded) {
+      self.delegate?.onboardingView?(self, didSelectPage: self.pageControlView.currentPage)
+    }
+    
+    animateSubviews(current)
+    animatePageView(previous, forState: .fadeIn)
   }
   
   fileprivate func currentPageView() -> PageView {
@@ -279,7 +298,7 @@ public final class OnboardingView: UIView, CAAnimationDelegate {
       arcCenter: center,
       radius: state == .expanded ? frame.height * 2 : 0.1,
       startAngle: 0,
-      endAngle: CGFloat(M_PI) * 2,
+      endAngle: CGFloat(CGFloat.pi) * 2,
       clockwise: false
     )
   }
